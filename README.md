@@ -20,25 +20,135 @@ Bài Lab giúp bạn hiểu rõ sự tiến hóa qua 4 cấp độ của hệ th
 
 ### 📂 2. CẤU TRÚC THƯ MỤC DỰ ÁN
 
+> 🎯 **Đề tài nhóm chọn (Đề tài 9)**: **Trợ Lý Sàng Lọc Hồ Sơ Tuyển Dụng & Hẹn Phỏng Vấn** — đọc CV ứng viên, chấm mức độ phù hợp với JD và hỗ trợ đặt lịch phỏng vấn. Chi tiết tại [PLAN.md](PLAN.md).
+
 ```text
-📁 Day-3-Lab-Chatbot-vs-react-agent-E402/
-├── 📄 README.md                 <-- 📘 Tổng quan bài Lab & Thang điểm
-├── 📄 .env.example              <-- 🔑 File mẫu API Key
+📁 DAY03_2A202601113_NguyenHuyHoang/
+├── 📄 README.md                 <-- 📘 Tổng quan kiến trúc & Thang điểm
+├── 📄 PLAN.md                   <-- 🗺️ Đề bài, phạm vi & kịch bản demo của nhóm
+├── 📄 .env.example              <-- 🔑 File mẫu API Key (.env thật bị .gitignore chặn)
 ├── 📄 requirements.txt          <-- 📦 Thư viện cần cài đặt
 │
-├── 📁 config/                   <-- 🛠️ CẤU HÌNH & DỮ LIỆU
-│   └── 📄 test_cases.json       <-- 🟢 [Role 1] Bộ đề 5 Test Cases thử thách AI
+├── 📁 config/                   <-- 🛠️ CẤU HÌNH
+│   └── 📄 test_cases.json       <-- 🟢 [Role 1] 12 Test Cases (JD + CV) kèm rubric & điểm kỳ vọng
 │
-├── 📁 src/                      <-- 💻 MÃ NGUỒN PYTHON (BOILERPLATE)
-│   ├── 📄 tools.py              <-- 🛠️ [Role 2] Khai báo các công cụ (Tools)
-│   ├── 📄 prompts.py            <-- 🧠 [Role 3] ReAct System Prompt & Guardrails
-│   └── 📄 app.py                <-- 🚀 [Role 4] Core App ghép nối & chạy ReAct Loop
+├── 📁 data/                     <-- 🗄️ DỮ LIỆU THẬT CHO TOOL TRA CỨU
+│   ├── 📄 JOB_DATA_FINAL.csv    <-- 14.634 tin tuyển dụng
+│   ├── 📄 USER_DATA_FINAL.csv   <-- 3.983 hồ sơ ứng viên
+│   └── 📄 interviewers.json     <-- Lịch trống của phỏng vấn viên
+│
+├── 📁 src/                      <-- 💻 MÃ NGUỒN PYTHON
+│   ├── 📄 app.py                <-- 🚀 [Role 4] Entry point: nạp test case & chạy 2 nhánh so sánh
+│   ├── 📄 agent_core.py         <-- ⚙️ [Role 4] Lõi vòng lặp ReAct: parse Thought/Action, gọi tool, dựng trace
+│   ├── 📄 tools.py              <-- 🛠️ [Role 2] 7 công cụ chỉ-đọc truy vấn data/*.csv
+│   ├── 📄 prompts.py            <-- 🧠 [Role 3] ReAct System Prompt & Guardrails (MAX_ITERATIONS)
+│   ├── 📄 providers.py          <-- 🔌 Adapter đa nhà cung cấp LLM (OpenAI/Gemini/Anthropic/OpenRouter/Mock)
+│   └── 📁 ai_levels/            <-- 📚 Minh họa 4 cấp độ AI ở mục 1 (chạy độc lập, không nằm trong luồng app)
+│       ├── 📄 level1_rule_based.py       <-- Bot if/else, không dùng LLM
+│       ├── 📄 level2_llm_chatbot.py      <-- LLM Chatbot, không có Tool
+│       ├── 📄 level3_reactive_agent.py   <-- ReAct Agent rút gọn
+│       └── 📄 level4_autonomous_agent.py <-- Autonomous Agent (Planning & Memory)
 │
 └── 📁 docs/                     <-- 📚 TÀI LIỆU HƯỚNG DẪN & BÁO CÁO
     ├── 📄 CODELAB.md            <-- 🎓 [LMS Format] Hướng dẫn thực hành từng bước Codelab
     ├── 📄 PHAN_CONG_CONG_VIEC.md <-- 📋 [BẮT ĐẦU TẠI ĐÂY] Sổ tay thực hành & Checklist 5 Roles
     ├── 📄 DANH_SACH_DE_TAI.md    <-- 💡 Danh sách 10 chủ đề gợi ý
-    └── 📄 trace_eval.md          <-- 📊 [Role 5] Báo cáo Log Trace & Đánh giá Agentic Fit
+    ├── 📄 TOOL_SPECS.md          <-- 🛠️ [Role 2] Đặc tả input/output từng Tool
+    ├── 📄 trace_eval.md          <-- 📊 [Role 5] Báo cáo Log Trace & Đánh giá Agentic Fit
+    └── 📄 hybrid_flowchart.mermaid <-- 🔀 [Role 5] Sơ đồ phân luồng Chatbot path vs ReAct path
+```
+
+#### 🔄 Luồng xử lý một Test Case
+
+**Bước 1 — Dựng câu hỏi và chia hai nhánh** (`src/app.py`)
+
+```text
+ config/test_cases.json  [Role 1] ─┐
+ src/prompts.py          [Role 3] ─┴──> src/app.py
+                                            │
+                                            │  format_test_case_query(test_case)
+                                            │  • có trường "question" ──> dùng nguyên văn
+                                            │  • không có             ──> ghép JD + candidate
+                                            ▼
+                                  MỘT CÂU HỎI DUY NHẤT
+                                            │
+                       ┌────────────────────┴────────────────────┐
+                       ▼                                         ▼
+                  [NHÁNH 1]                                 [NHÁNH 2]
+              Chatbot Baseline                              ReAct Agent
+           run_baseline_chatbot()                       run_react_agent()
+                       │                                         │
+                       ▼                                         ▼
+             providers.py ──> LLM                  agent_core.run_react_agent()
+            đúng 1 lần gọi, 0 tool                 vòng lặp ReAct ──> Bước 2
+                       │                                         │
+                       ▼                                         ▼
+            {answer, tool_calls: 0}                   {answer, trace, tool_calls,
+                                                       termination_reason}
+```
+
+Trước khi vào vòng lặp, `app.py` còn **nạp thêm đồ nghề riêng cho nhánh 2**:
+
+* Lấy toàn bộ **7 tool chỉ-đọc** trong `src/tools.py` (`AVAILABLE_TOOLS`).
+* Nếu test case có `expected_score_breakdown`, bơm thêm tool thứ 8 là `score_test_case[id]` (dựng ngay từ rubric của Role 1) và nối hướng dẫn dùng tool đó vào cuối `REACT_SYSTEM_PROMPT`. **Cả 12 test case hiện tại đều có rubric**, nên trên thực tế Agent luôn chạy với 8 tool.
+* Sau khi vòng lặp kết thúc, nếu Agent *không* gọi `score_test_case`, `app.py` tự nối bảng điểm (`format_scorecard`) vào cuối câu trả lời để HR luôn nhìn thấy scorecard.
+
+**Bước 2 — Bên trong vòng lặp ReAct** (`src/agent_core.py`, lặp tối đa `MAX_ITERATIONS = 15`)
+
+```text
+ ┌──> _build_user_context()
+ │    ghép câu hỏi gốc + TOÀN BỘ trace của các bước trước
+ │    │
+ │    ▼
+ │    providers.py ──> LLM ──> "Thought: ... / Action: ..."
+ │    │
+ │    ▼  parse_agent_response()  — luôn dò "Final Answer" TRƯỚC
+ │    │
+ │    ├── "Final Answer: ..."  ──> 🚪 THOÁT · final_answer
+ │    │
+ │    ├── sai định dạng  ──> 🛡️ ghi parse_error vào trace
+ │    │                      đủ 2 lần (cộng dồn) ──> 🚪 THOÁT · parse_error
+ │    │
+ │    └── "Action: tên[tham_số]"
+ │         │
+ │         ├── trùng Action đã chạy ──> 🛡️ chặn; Observation yêu cầu đổi hướng
+ │         │
+ │         └── Action mới
+ │              │
+ │              ▼
+ │              execute_tool() ──> src/tools.py ──> data/*.csv
+ │              │
+ │              ▼
+ │              Observation  (mọi lỗi đều thành chuỗi "LỖI: ...";
+ │              │             execute_tool không bao giờ ném exception ra ngoài)
+ └──────────────┘
+
+ Hết 15 vòng mà vẫn chưa có Final Answer
+ ──> 🛡️ 🚪 THOÁT · max_iterations  (trả câu xin lỗi, không bịa dữ liệu)
+```
+
+Hai nhánh nhận **cùng một câu hỏi** để so sánh công bằng. Nhánh 1 chỉ có kiến thức tĩnh trong LLM nên `tool_calls` luôn bằng `0` — đây chính là bằng chứng định lượng cho thấy Chatbot không có công cụ.
+
+Vòng lặp ở nhánh 2 có **bốn phanh an toàn**: hai phanh làm **dừng hẳn** vòng lặp, hai phanh còn lại chỉ **nắn lại hướng đi** của Agent.
+
+| Phanh | Cơ chế | Kết quả | Nơi cài đặt |
+| :--- | :--- | :--- | :--- |
+| 🛡️ Giới hạn vòng lặp | Chạy tối đa `MAX_ITERATIONS = 15` bước | 🚪 dừng · `max_iterations` | `agent_core.py:107` |
+| 🛡️ Sai định dạng | Không đọc được Action/Final Answer, cộng dồn đủ 2 lần thì dừng | 🚪 dừng · `parse_error` | `agent_core.py:120-140` |
+| 🛡️ Chống lặp | `seen_actions` phát hiện Action trùng hệt, chặn không cho chạy lại | ↩️ không dừng | `agent_core.py:142-150` |
+| 🛡️ Bọc lỗi tool | Tool không tồn tại / sai tham số / crash đều thành chuỗi `"LỖI: ..."` | ↩️ không dừng | `agent_core.py:53-71` |
+
+Nhờ hai phanh *không dừng*, Agent **đọc được lỗi và tự sửa hướng** thay vì làm sập chương trình — và nhờ hai phanh *dừng hẳn*, trường hợp xấu nhất vẫn trả về câu xin lỗi lịch sự chứ không bịa dữ liệu.
+
+**Chạy thử:**
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env        # điền API key và LLM_PROVIDER
+
+python src/app.py           # demo nhanh: 1 test case (id = 3) chạy qua cả 2 nhánh
+python src/app.py --all     # chạy trọn 12 test case trong config/test_cases.json
+# đặt LLM_PROVIDER=mock trong .env để chạy offline, không tốn API
 ```
 
 ---
@@ -70,4 +180,4 @@ timeline
 ---
 
 > 🚀 **BẮT ĐẦU LÀM BÀI**:
-> Vui lòng mở sổ tay thực hành 👉 **[PHAN_CONG_CONG_VIEC.md](file:///c:/Users/Admin/Documents/VinUni/LabCoachVin/LabKeyCoach/Day-3-Lab-Chatbot-vs-react-agent-E402/docs/PHAN_CONG_CONG_VIEC.md)** để xem phân vai và checklist công việc cụ thể cho từng thành viên!
+> Vui lòng mở sổ tay thực hành 👉 **[PHAN_CONG_CONG_VIEC.md](docs/PHAN_CONG_CONG_VIEC.md)** để xem phân vai và checklist công việc cụ thể cho từng thành viên!
