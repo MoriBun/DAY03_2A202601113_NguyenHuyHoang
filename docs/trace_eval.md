@@ -1,10 +1,6 @@
 # 📊 BÁO CÁO GIÁM SÁT & ĐÁNH GIÁ (OBSERVABILITY TRACE LOGS)
 
-*Dành cho Role 5: Observability & Reviewer*
-
----
-
-## 🎯 1. BẢNG CHẤM ĐIỂM AGENTIC FIT (SCORING MATRIX)
+## Agentic Fit
 
 Nhóm lựa chọn đề tài: "Trợ Lý Sàng Lọc Hồ Sơ Tuyển Dụng & Hẹn Phỏng Vấn"
 
@@ -14,9 +10,7 @@ Nhóm lựa chọn đề tài: "Trợ Lý Sàng Lọc Hồ Sơ Tuyển Dụng & 
 | 🛠️**Tool Interaction**   |     `5/5`     | Bắt buộc phải gọi nhiều công cụ thực tế:`get_candidate_cv` (đọc CV), `get_jd` (xem yêu cầu công việc), `check_calendar` (tìm lịch trống HR/Interviewer), `send_email` (gửi mail hẹn phỏng vấn).  |
 | 🔀**Dynamic Decision**     |     `5/5`     | Quyết định rẽ nhánh linh hoạt theo kết quả trước đó: Nếu CV thiếu kỹ năng cốt lõi ➔ Từ chối & gửi mail lịch sự. Nếu CV phù hợp ➔ Chuyển sang tra cứu lịch rảnh của Tech Lead để xếp lịch. |
 | ⏳**Long Horizon**         |     `4/5`     | Quy trình xử lý gồm chuỗi 3–4 thao tác nối tiếp từ khâu đọc hồ sơ đến khâu chốt lịch và gửi thông báo hoàn tất.                                                                                      |
-| **TỔNG ĐIỂM FIT**       | **19/20** | **KẾT LUẬN: BÀI TOÁN RẤT NÊN DÙNG REACT AGENT!<br />*(Chatbot thông thường không thể tự tra cứu CV, check lịch hay gửi email).***                                                                      |
-
----
+| **TỔNG ĐIỂM FIT**       | **19/20** | **KẾT LUẬN: BÀI TOÁN RẤT NÊN DÙNG REACT AGENT!<br />*(Chatbot thông thường không thể tự tra cứu CV, check lịch hay gửi email).***          
 
 ## 🔍 2. SO SÁNH PHẢN HỒI
 
