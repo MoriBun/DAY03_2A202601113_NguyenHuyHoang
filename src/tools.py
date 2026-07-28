@@ -238,7 +238,7 @@ def score_candidate(job_id: str, user_id: str) -> str:
     job_title_terms = _keywords(job.get("Job Title"))
     candidate_role_terms = _keywords(candidate.get("Desired Job"))
     role_matches = sorted(job_title_terms & candidate_role_terms)
-    role_score = round(20 * len(role_matches) / max(1, len(job_title_terms)))
+    role_score = round(15 * len(role_matches) / max(1, len(job_title_terms)))
 
     job_requirement_terms = _keywords(f"{job.get('Job Requirements', '')} {job.get('Job Description', '')}")
     candidate_skill_terms = _keywords(f"{candidate.get('Skills', '')} {candidate.get('Target', '')}")
@@ -251,10 +251,10 @@ def score_candidate(job_id: str, user_id: str) -> str:
         experience_score = 0
         experience_note = "Không đủ dữ liệu để quy đổi"
     elif required_experience == 0:
-        experience_score = 25
+        experience_score = 30
         experience_note = "Job không yêu cầu kinh nghiệm"
     else:
-        experience_score = round(25 * min(candidate_experience / required_experience, 1))
+        experience_score = round(30 * min(candidate_experience / required_experience, 1))
         experience_note = (
             f"Ứng viên ~{candidate_experience:g} năm, "
             f"job yêu cầu từ {required_experience:g} năm"
@@ -280,9 +280,9 @@ def score_candidate(job_id: str, user_id: str) -> str:
             f"Ứng viên: {candidate.get('User Name', 'Không rõ')}",
             f"Vị trí: {job.get('Job Title', 'Không rõ')}",
             f"Điểm heuristic: {total_score}/100",
-            f"- Tương đồng vị trí: {role_score}/20 ({', '.join(role_matches) or 'không rõ'})",
+            f"- Tương đồng vị trí: {role_score}/15 ({', '.join(role_matches) or 'không rõ'})",
             f"- Từ khóa kỹ năng/nhiệm vụ: {skill_score}/40 ({matched_display})",
-            f"- Kinh nghiệm làm việc: {experience_score}/25 ({experience_note})",
+            f"- Kinh nghiệm làm việc: {experience_score}/30 ({experience_note})",
             f"- Ngành: {industry_score}/10 | Địa điểm: {location_score}/5",
             f"Khuyến nghị: {recommendation}.",
             "Lưu ý: Điểm này chỉ hỗ trợ sàng lọc; HR phải kiểm tra JD và hồ sơ gốc trước quyết định.",
