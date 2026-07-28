@@ -132,12 +132,52 @@ class OpenRouterProvider(BaseLLMProvider):
 
 
 class MockProvider(BaseLLMProvider):
-    """Offline Mock Provider (Cho bài test không cần kết nối API)"""
+    """Offline deterministic provider for the recruitment test cases."""
     def generate(self, prompt: str, system_prompt: str = "") -> str:
-        text = prompt.lower()
-        if "thời tiết" in text and "hà nội" in text:
-            return "Thought: Cần tra cứu thời tiết Hà Nội.\nAction: get_weather['Hà Nội']"
-        return "🤖 [Mock Provider]: Phản hồi giả lập offline cho bài test."
+        text = prompt.casefold()
+        baseline = system_prompt.casefold()
+
+        if "không có khả năng truy cập cơ sở dữ liệu" in baseline:
+            return (
+                "Tôi có thể tư vấn chung về tuyển dụng, nhưng không thể xác nhận "
+                "dữ liệu JobID, UserID hoặc điểm phù hợp khi chưa được cấp tool."
+            )
+
+        if "99999999" in text:
+            if "observation:" not in text:
+                return "Thought: Cần kiểm tra hồ sơ ứng viên trước.\nAction: get_candidate_profile[99999999]"
+            return (
+                "Thought: UserID không tồn tại trong dữ liệu.\n"
+                "Final Answer: Tôi không tìm thấy hồ sơ ứng viên này, nên chưa thể đánh giá. "
+                "Vui lòng kiểm tra lại UserID."
+            )
+
+        if "976112" in text and "jobid 0" in text:
+            if "observation: job [0]" not in text:
+                return "Thought: Cần đọc yêu cầu công việc trước.\nAction: get_job_description[0]"
+            if "observation: ứng viên [976112]" not in text:
+                return "Thought: Cần đọc hồ sơ ứng viên trước khi chấm.\nAction: get_candidate_profile[976112]"
+            if "observation: đánh giá hỗ trợ hr" not in text:
+                return "Thought: Đã có JD và hồ sơ, cần chấm mức phù hợp.\nAction: score_candidate[0, 976112]"
+            return (
+                "Thought: Đã có kết quả chấm từ dữ liệu.\n"
+                "Final Answer: Tôi đã tra cứu JobID 0 và UserID 976112, rồi tạo điểm hỗ trợ HR. "
+                "Vui lòng dùng kết quả này để HR xem xét hồ sơ gốc."
+            )
+
+        if "jobid 0" in text:
+            if "observation: job [0]" not in text:
+                return "Thought: Cần tra cứu JobID được yêu cầu.\nAction: get_job_description[0]"
+            return (
+                "Thought: Đã có mô tả công việc.\n"
+                "Final Answer: Tôi đã lấy thông tin chi tiết của công việc JobID 0 từ dữ liệu."
+            )
+
+        return (
+            "Thought: Câu hỏi này không cần tra cứu dữ liệu.\n"
+            "Final Answer: Hãy trình bày kinh nghiệm, kỹ năng liên quan và thành tựu cụ thể; "
+            "đồng thời chuẩn bị ví dụ thực tế trước buổi phỏng vấn."
+        )
 
 
 def get_llm_provider(provider_name: str = None) -> BaseLLMProvider:

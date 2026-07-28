@@ -41,6 +41,39 @@ def run_baseline_chatbot(user_query: str, provider):
     return {"answer": response, "tool_calls": 0}
 
 
+def format_observation_for_console(item):
+    """Keep full observations in the ReAct context, but print only score-relevant data."""
+    tool_name = item["name"]
+    if item["observation"].startswith("LỖI:"):
+        return item["observation"]
+
+    if tool_name in {"get_candidate_profile", "get_resume_content"}:
+        user_id = item["arguments"][0] if item["arguments"] else "không rõ"
+        return f"Đã đọc hồ sơ UserID {user_id} để phục vụ chấm điểm."
+
+    if tool_name == "get_job_description":
+        job_id = item["arguments"][0] if item["arguments"] else "không rõ"
+        return f"Đã đọc yêu cầu JobID {job_id} để phục vụ chấm điểm."
+
+    if tool_name == "score_candidate":
+        prefixes = (
+            "ĐÁNH GIÁ HỖ TRỢ HR:",
+            "Điểm heuristic:",
+            "- Tương đồng vị trí:",
+            "- Từ khóa kỹ năng/nhiệm vụ:",
+            "- Kinh nghiệm làm việc:",
+            "- Ngành:",
+            "Khuyến nghị:",
+        )
+        summary_lines = [
+            line for line in item["observation"].splitlines()
+            if line.startswith(prefixes)
+        ]
+        return "\n".join(summary_lines) or item["observation"]
+
+    return item["observation"]
+
+
 def run_react_agent(user_query: str, provider):
     """Integrate Role 2 tools and Role 3 prompts through the ReAct core."""
     print(f"\n🤖 [REACT AGENT] Câu hỏi: {user_query}")
@@ -60,7 +93,7 @@ def run_react_agent(user_query: str, provider):
         if item["thought"]:
             print(f"🧠 Thought: {item['thought']}")
         print(f"🛠️ Action: {item['name']}[{', '.join(item['arguments'])}]")
-        print(f"👁️ Observation: {item['observation']}")
+        print(f"👁️ Observation: {format_observation_for_console(item)}")
 
     if result["termination_reason"] == "max_iterations":
         print(f"\n🛡️ GUARDRAIL TRIGGERED: Đã đạt giới hạn {MAX_ITERATIONS} vòng lặp.")
@@ -81,12 +114,14 @@ if __name__ == "__main__":
     tests = load_test_cases()
     print(f"✅ Đã tải thành công {len(tests)} Test Cases từ config/test_cases.json\n")
     
-    # Tra test case theo id (không dùng chỉ số mảng, để Role 1 thêm/bớt câu vẫn chạy đúng)
-    sample = next((t for t in tests if t.get("id") == 3), tests[0])
-    sample_query = sample["question"]
-    
-    print("--- DEMO 1: CHẠY TRÊN CHATBOT BASELINE ---")
-    run_baseline_chatbot(sample_query, provider)
-    
-    print("\n--- DEMO 2: CHẠY TRÊN REACT AGENT ---")
-    run_react_agent(sample_query, provider)
+    for test_case in tests:
+        print("\n" + "=" * 50)
+        print(f"TEST CASE #{test_case['id']}: {test_case['category']}")
+        print(f"Câu hỏi: {test_case['question']}")
+        print(f"Kỳ vọng: {test_case['expected_behavior']}")
+
+        print("\n--- CHATBOT BASELINE ---")
+        run_baseline_chatbot(test_case["question"], provider)
+
+        print("\n--- REACT AGENT ---")
+        run_react_agent(test_case["question"], provider)

@@ -1,37 +1,43 @@
-# 📊 BÁO CÁO GIÁM SÁT & ĐÁNH GIÁ (OBSERVABILITY TRACE LOGS)
+# Bao cao Trace va Danh gia
 
-*Dành cho Role 5: Observability & Reviewer*
+## Agentic Fit
 
----
+| Tieu chi | Diem | Ly do |
+|---|---:|---|
+| Multi-step reasoning | 5/5 | Doc JD, doc ho so, cham diem va tong hop. |
+| Tool interaction | 5/5 | Du lieu job va ung vien nam trong hai CSV rieng. |
+| Dynamic decision | 4/5 | Observation loi ID bat buoc doi huong hoac fallback. |
+| Long horizon | 3/5 | Flow cham diem can ba Action lien tiep. |
+| Tong | 17/20 | Bai toan phu hop voi ReAct Agent. |
 
-## 🎯 1. BẢNG CHẤM ĐIỂM AGENTIC FIT (SCORING MATRIX)
+## So sanh Test Case 4
 
-Nhóm lựa chọn đề tài: "Trợ Lý Sàng Lọc Hồ Sơ Tuyển Dụng & Hẹn Phỏng Vấn"
+Cau hoi: Danh gia muc do phu hop cua ung vien UserID 976112 voi cong viec JobID 0.
 
-| Tiêu chí                       |  Điểm (1-5)  | Lý do đánh giá                                                                                                                                                                                                             |
-| :------------------------------- | :-------------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🧠**Multi-step Reasoning** |     `5/5`     | Cần suy luận qua nhiều bước liên tục: Đọc thông tin CV ➔ So sánh kỹ năng & kinh nghiệm với Yêu cầu tuyển dụng (JD) ➔ Tính điểm tương thích ➔ Đánh giá Đạt / Không đạt.                     |
-| 🛠️**Tool Interaction**   |     `5/5`     | Bắt buộc phải gọi nhiều công cụ thực tế:`get_candidate_cv` (đọc CV), `get_jd` (xem yêu cầu công việc), `check_calendar` (tìm lịch trống HR/Interviewer), `send_email` (gửi mail hẹn phỏng vấn).  |
-| 🔀**Dynamic Decision**     |     `5/5`     | Quyết định rẽ nhánh linh hoạt theo kết quả trước đó: Nếu CV thiếu kỹ năng cốt lõi ➔ Từ chối & gửi mail lịch sự. Nếu CV phù hợp ➔ Chuyển sang tra cứu lịch rảnh của Tech Lead để xếp lịch. |
-| ⏳**Long Horizon**         |     `4/5`     | Quy trình xử lý gồm chuỗi 3–4 thao tác nối tiếp từ khâu đọc hồ sơ đến khâu chốt lịch và gửi thông báo hoàn tất.                                                                                      |
-| **TỔNG ĐIỂM FIT**       | **19/20** | **KẾT LUẬN: BÀI TOÁN RẤT NÊN DÙNG REACT AGENT!<br />*(Chatbot thông thường không thể tự tra cứu CV, check lịch hay gửi email).***                                                                      |
+### Chatbot Baseline
 
----
+Chatbot chi tu van chung va tu choi xac nhan JobID, UserID hay diem phu hop
+vi khong co tool truy cap CSV.
 
-## 🔍 2. SO SÁNH PHẢN HỒI (TEST CASE #3)
+### ReAct Agent mock
 
-**Câu hỏi**: *"Thời tiết ở Hà Nội hôm nay thế nào và tôi nên mặc gì đi chơi?"*
+    Thought: Can doc yeu cau cong viec truoc.
+    Action: get_job_description[0]
+    Observation: JOB [0]: Sale Admin Website ...
 
-### 🤖 Chatbot Baseline:
+    Thought: Can doc ho so ung vien truoc khi cham.
+    Action: get_candidate_profile[976112]
+    Observation: UNG VIEN [976112]: nguyen Ba Nghi ...
 
-* **Phản hồi**: *"Tôi không có truy cập Internet thời gian thực nên không biết thời tiết hôm nay ở Hà Nội."*
-* **Nhận xét**: An toàn nhưng không giải quyết được nhu cầu thực tế của người dùng.
+    Thought: Da co JD va ho so, can cham muc phu hop.
+    Action: score_candidate[0, 976112]
+    Observation: Diem heuristic va cac tieu chi vi tri, ky nang,
+    Work Experience, nganh, dia diem.
 
-### 🧠 ReAct Agent:
+    Final Answer: HR dung ket qua de xem xet ho so goc.
 
-* **Thought 1**: Cần tra cứu thời tiết Hà Nội.
-* **Action 1**: `get_weather['Hà Nội']`
-* **Observation 1**: `Thời tiết Hà Nội: 28°C, Nắng nhẹ, Độ ẩm 65%.`
-* **Thought 2**: Đã có thông tin 28°C nắng nhẹ, đưa ra lời khuyên trang phục.
-* **Final Answer**: *"Thời tiết Hà Nội hôm nay 28°C, nắng nhẹ. Bạn nên mặc quần áo thoáng mát!"*
-* **Nhận xét**: Hoàn thành xuất sắc nhiệm vụ nhờ sự kết hợp giữa suy luận và công cụ.
+## Edge Case 5
+
+Voi UserID 99999999, Agent goi get_candidate_profile[99999999], nhan
+Observation LOI: Khong tim thay UserID, sau do tra loi an toan. Agent khong
+lap lai Action va khong tu tao du lieu ung vien.

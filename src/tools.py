@@ -5,8 +5,10 @@ final hiring decisions or contact candidates.
 """
 
 import csv
+import math
 import re
 import unicodedata
+from collections import Counter
 from functools import lru_cache
 from pathlib import Path
 
@@ -21,6 +23,12 @@ STOP_WORDS = {
     "va", "la", "cho", "cua", "trong", "voi", "mot", "nhung", "cac",
     "duoc", "theo", "tai", "tu", "den", "nhan", "vien", "cong", "ty",
     "viec", "lam", "kinh", "nghiem", "yeu", "cau", "co", "khong",
+}
+SKILL_STOP_WORDS = STOP_WORDS | {
+    "bao", "biet", "cao", "cap", "chiu", "chuyen", "dai", "dam", "doi",
+    "giao", "hang", "hieu", "hien", "hoc", "hoi", "khach", "lam", "ly",
+    "nang", "nghiep", "nhanh", "phong", "quan", "thanh", "thao", "thuc",
+    "tinh", "tot", "van", "xuat", "yeu", "nguoi", "moi", "nhom",
 }
 
 
@@ -41,6 +49,15 @@ def _keywords(value: object) -> set[str]:
         token
         for token in TOKEN_PATTERN.findall(_normalize(value))
         if len(token) >= 3 and token not in STOP_WORDS
+    }
+
+
+def _skill_keywords(value: object) -> set[str]:
+    """Extract potentially job-specific terms and discard common prose words."""
+    return {
+        token
+        for token in TOKEN_PATTERN.findall(_normalize(value))
+        if len(token) >= 3 and token not in SKILL_STOP_WORDS
     }
 
 
@@ -85,6 +102,15 @@ def _load_candidates() -> list[dict[str, str]]:
         return []
     with CANDIDATES_CSV.open("r", encoding="utf-8-sig", newline="") as file:
         return list(csv.DictReader(file))
+
+
+@lru_cache(maxsize=1)
+def _job_requirement_document_frequency() -> Counter[str]:
+    """Count in how many job requirements each term occurs."""
+    frequencies: Counter[str] = Counter()
+    for job in _load_jobs():
+        frequencies.update(_skill_keywords(job.get("Job Requirements", "")))
+    return frequencies
 
 
 def _find_by_id(rows: list[dict[str, str]], field: str, record_id: str) -> dict[str, str] | None:
@@ -240,10 +266,20 @@ def score_candidate(job_id: str, user_id: str) -> str:
     role_matches = sorted(job_title_terms & candidate_role_terms)
     role_score = round(15 * len(role_matches) / max(1, len(job_title_terms)))
 
-    job_requirement_terms = _keywords(f"{job.get('Job Requirements', '')} {job.get('Job Description', '')}")
-    candidate_skill_terms = _keywords(f"{candidate.get('Skills', '')} {candidate.get('Target', '')}")
+    job_requirement_terms = _skill_keywords(job.get("Job Requirements", ""))
+    candidate_skill_terms = _skill_keywords(candidate.get("Skills", ""))
     skill_matches = sorted(job_requirement_terms & candidate_skill_terms)
-    skill_score = round(40 * min(len(skill_matches), 20) / 20)
+    requirement_frequency = _job_requirement_document_frequency()
+    job_count = len(_load_jobs())
+    if job_requirement_terms and job_count:
+        def term_weight(term: str) -> float:
+            return math.log((job_count + 1) / (requirement_frequency[term] + 1)) + 1
+
+        total_weight = sum(term_weight(term) for term in job_requirement_terms)
+        matched_weight = sum(term_weight(term) for term in skill_matches)
+        skill_score = round(40 * matched_weight / total_weight)
+    else:
+        skill_score = 0
 
     required_experience = _experience_years(job.get("Years of Experience"))
     candidate_experience = _experience_years(candidate.get("Work Experience"))

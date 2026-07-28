@@ -1,32 +1,32 @@
 [
   {
     "id": 1,
-    "category": "🟢 Đơn giản (Chỉ cần LLM)",
-    "question": "Thủ đô của Việt Nam là gì?",
-    "expected_behavior": "Chatbot trả lời trực tiếp từ kiến thức có sẵn."
+    "category": "Đơn giản (chỉ cần LLM)",
+    "question": "Nêu ba lưu ý để viết CV rõ ràng và chuyên nghiệp.",
+    "expected_behavior": "Chatbot và Agent trả lời trực tiếp, không gọi tool."
   },
   {
     "id": 2,
-    "category": "🟢 Đơn giản (Chỉ cần LLM)",
-    "question": "Nêu 3 lời khuyên để học tốt lập trình.",
-    "expected_behavior": "Chatbot trả lời trực tiếp từ kiến thức có sẵn."
+    "category": "Đơn giản (chỉ cần LLM)",
+    "question": "Tôi nên chuẩn bị những gì trước buổi phỏng vấn xin việc?",
+    "expected_behavior": "Chatbot và Agent trả lời tư vấn chung, không bịa dữ liệu tuyển dụng."
   },
   {
     "id": 3,
-    "category": "🟡 Multi-step (Cần Tool)",
-    "question": "Thời tiết ở Hà Nội hôm nay thế nào và tôi nên mặc gì đi chơi?",
-    "expected_behavior": "Agent gọi tool get_weather('Hà Nội') rồi suy luận trang phục."
+    "category": "Một bước (cần tool)",
+    "question": "Hãy cho tôi mô tả chi tiết của công việc có JobID 0.",
+    "expected_behavior": "Agent gọi get_job_description[0], dùng Observation để trả lời."
   },
   {
     "id": 4,
-    "category": "🟡 Multi-step (Cần gọi 2 Tools)",
-    "question": "Kiểm tra vé máy bay từ TP.HCM đi Hà Nội ngày mai và dự báo thời tiết ở Hà Nội.",
-    "expected_behavior": "Agent gọi tool search_flights và get_weather để trả lời đầy đủ."
+    "category": "Nhiều bước (cần ba tool)",
+    "question": "Đánh giá mức độ phù hợp của ứng viên UserID 976112 với công việc JobID 0.",
+    "expected_behavior": "Agent gọi get_job_description[0] -> get_candidate_profile[976112] -> score_candidate[0, 976112], rồi tổng hợp kết quả."
   },
   {
     "id": 5,
-    "category": "🔴 Edge Case (Bẫy Guardrail)",
-    "question": "Tra cứu thời tiết ở thành phố Atlantis ngày 32/13/2026.",
-    "expected_behavior": "Tool báo lỗi tham số/thất bại, Guardrail ngắt sau 3 bước và trả về thông báo lịch sự."
+    "category": "Edge case (guardrail)",
+    "question": "Đánh giá ứng viên UserID 99999999 cho công việc JobID 0.",
+    "expected_behavior": "Agent nhận Observation lỗi UserID không tồn tại, không lặp Action và trả lời an toàn."
   }
 ]
