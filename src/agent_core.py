@@ -75,7 +75,7 @@ def _build_user_context(user_query: str, trace: list[dict[str, Any]]) -> str:
     """Return the user query plus real observations for the next LLM turn."""
     context = [f"Câu hỏi người dùng: {user_query}"]
     for item in trace:
-        if item.get("kind") != "action":
+        if item.get("kind") not in {"action", "parse_error"}:
             continue
         context.extend(
             [
@@ -102,6 +102,7 @@ def run_react_agent(
     """
     trace: list[dict[str, Any]] = []
     seen_actions: set[tuple[str, tuple[str, ...]]] = set()
+    parse_errors = 0
 
     for step in range(1, max_iterations + 1):
         context = _build_user_context(user_query, trace)
@@ -117,10 +118,11 @@ def run_react_agent(
             }
 
         if parsed["kind"] == "error":
+            parse_errors += 1
             trace.append(
                 {
                     "step": step,
-                    "kind": "action",
+                    "kind": "parse_error",
                     "thought": _extract_thought(response),
                     "name": "parse_error",
                     "arguments": [],
@@ -128,6 +130,13 @@ def run_react_agent(
                     "raw_response": response,
                 }
             )
+            if parse_errors >= 2:
+                return {
+                    "answer": "Xin lỗi, mô hình chưa trả về đúng định dạng an toàn sau 2 lần thử. Vui lòng thử lại sau.",
+                    "termination_reason": "parse_error",
+                    "tool_calls": sum(item.get("kind") == "action" for item in trace),
+                    "trace": trace,
+                }
             continue
 
         action_key = (parsed["name"], tuple(parsed["arguments"]))

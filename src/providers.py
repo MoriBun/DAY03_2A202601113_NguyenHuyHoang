@@ -6,6 +6,7 @@ Hỗ trợ chuyển đổi linh hoạt giữa các nhà cung cấp AI chỉ bằ
 import os
 import sys
 import json
+import re
 import requests
 from dotenv import load_dotenv
 
@@ -135,6 +136,49 @@ class MockProvider(BaseLLMProvider):
     """Offline Mock Provider (Cho bài test không cần kết nối API)"""
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         text = prompt.lower()
+        system_text = system_prompt.lower()
+
+        if "jd:" in text and "ứng viên:" in text:
+            match = re.search(r"current_test_case_id:\s*(\d+)", system_text)
+            if "không có khả năng truy cập cơ sở dữ liệu" in system_text:
+                return (
+                    "Dựa trên JD và hồ sơ bạn đã cung cấp, HR nên đối chiếu chức danh, kỹ năng, "
+                    "kinh nghiệm, lĩnh vực và địa điểm; cần xác minh các bằng chứng trước khi đưa ra quyết định."
+                )
+            if match:
+                test_case_id = match.group(1)
+                if "observation: 📊 điểm sàng lọc" in text:
+                    return (
+                        "Thought: Tôi đã nhận được điểm từ công cụ chấm điểm.\n"
+                        "Final Answer: Điểm sàng lọc đã được tổng hợp bên dưới để HR tham khảo; "
+                        "hãy xác minh bằng CV gốc và phỏng vấn trước khi quyết định."
+                    )
+                return (
+                    "Thought: Cần gọi công cụ chấm điểm trước khi đưa ra nhận xét.\n"
+                    f"Action: score_test_case[{test_case_id}]"
+                )
+            return (
+                "Thought: JD và hồ sơ đã có sẵn trong câu hỏi, nên không cần gọi tool.\n"
+                "Final Answer: Ứng viên có một số điểm phù hợp để HR xem xét sơ bộ. "
+                "Hãy đối chiếu chức danh, kỹ năng, kinh nghiệm, lĩnh vực và địa điểm với JD, "
+                "sau đó kiểm chứng bằng CV gốc và phỏng vấn trước khi quyết định."
+            )
+
+        if "testcaseid:" in text:
+            match = re.search(r"testcaseid:\s*(\d+)", text)
+            test_case_id = match.group(1) if match else ""
+            if "không có khả năng truy cập cơ sở dữ liệu" in system_text:
+                return "Xin lỗi, tôi chưa có quyền truy cập dữ liệu JD và hồ sơ của test case này."
+            if "observation:" in text and "test_case_id" in text:
+                return (
+                    "Thought: Tôi đã có JD và hồ sơ từ tool để đưa ra nhận xét hỗ trợ HR.\n"
+                    "Final Answer: Hãy đối chiếu chức danh, kỹ năng, kinh nghiệm, lĩnh vực và địa điểm; "
+                    "chỉ mời phỏng vấn khi bằng chứng trong hồ sơ đáp ứng các tiêu chí liên quan đến công việc."
+                )
+            return (
+                "Thought: Cần lấy dữ liệu JD và hồ sơ của test case trước khi đánh giá.\n"
+                f"Action: get_test_case_data[{test_case_id}]"
+            )
         if "thời tiết" in text and "hà nội" in text:
             return "Thought: Cần tra cứu thời tiết Hà Nội.\nAction: get_weather['Hà Nội']"
         return "🤖 [Mock Provider]: Phản hồi giả lập offline cho bài test."
