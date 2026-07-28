@@ -6,6 +6,8 @@ Hỗ trợ chuyển đổi linh hoạt giữa các nhà cung cấp AI chỉ bằ
 import os
 import sys
 import json
+import re
+import unicodedata
 import requests
 from dotenv import load_dotenv
 
@@ -17,6 +19,16 @@ if sys.stdout.encoding != 'utf-8':
         pass
 
 load_dotenv()
+
+
+def _fold_text(value: str) -> str:
+    """Lowercase and remove Vietnamese accents for keyword guardrails."""
+    decomposed = unicodedata.normalize("NFD", value.casefold())
+    without_marks = "".join(
+        char for char in decomposed if unicodedata.category(char) != "Mn"
+    )
+    return without_marks.replace("đ", "d")
+
 
 class BaseLLMProvider:
     """Interface cơ sở cho tất cả các LLM Provider"""
@@ -135,6 +147,7 @@ class MockProvider(BaseLLMProvider):
     """Offline deterministic provider for the recruitment test cases."""
     def generate(self, prompt: str, system_prompt: str = "") -> str:
         text = prompt.casefold()
+        normalized_text = _fold_text(prompt)
         baseline = system_prompt.casefold()
 
         if "không có khả năng truy cập cơ sở dữ liệu" in baseline:
@@ -143,34 +156,42 @@ class MockProvider(BaseLLMProvider):
                 "dữ liệu JobID, UserID hoặc điểm phù hợp khi chưa được cấp tool."
             )
 
-        if "99999999" in text:
-            if "observation:" not in text:
-                return "Thought: Cần kiểm tra hồ sơ ứng viên trước.\nAction: get_candidate_profile[99999999]"
+        if "gioi tinh" in normalized_text or "gender" in normalized_text or "tuoi" in normalized_text:
             return (
-                "Thought: UserID không tồn tại trong dữ liệu.\n"
-                "Final Answer: Tôi không tìm thấy hồ sơ ứng viên này, nên chưa thể đánh giá. "
-                "Vui lòng kiểm tra lại UserID."
+                "Thought: Yêu cầu dùng thuộc tính nhạy cảm không phù hợp.\n"
+                "Final Answer: Tôi không thể chấm hoặc xếp hạng theo giới tính hay tuổi. "
+                "Tôi có thể đánh giá theo kỹ năng, kinh nghiệm, ngành và địa điểm."
             )
 
-        if "976112" in text and "jobid 0" in text:
-            if "observation: job [0]" not in text:
-                return "Thought: Cần đọc yêu cầu công việc trước.\nAction: get_job_description[0]"
-            if "observation: ứng viên [976112]" not in text:
-                return "Thought: Cần đọc hồ sơ ứng viên trước khi chấm.\nAction: get_candidate_profile[976112]"
+        score_request = re.search(r"userid\s+(\d+).*?jobid\s+(\d+)", text)
+        if score_request:
+            user_id, job_id = score_request.groups()
+            if "observation: lỗi:" in text:
+                return (
+                    "Thought: Dữ liệu đầu vào không hợp lệ.\n"
+                    "Final Answer: Tôi không thể chấm điểm vì không tìm thấy JobID hoặc UserID. "
+                    "Vui lòng kiểm tra lại mã dữ liệu."
+                )
+            if f"observation: job [{job_id}]" not in text:
+                return f"Thought: Cần đọc yêu cầu công việc trước.\nAction: get_job_description[{job_id}]"
+            if f"observation: ứng viên [{user_id}]" not in text:
+                return f"Thought: Cần đọc hồ sơ ứng viên trước khi chấm.\nAction: get_candidate_profile[{user_id}]"
             if "observation: đánh giá hỗ trợ hr" not in text:
-                return "Thought: Đã có JD và hồ sơ, cần chấm mức phù hợp.\nAction: score_candidate[0, 976112]"
+                return f"Thought: Đã có JD và hồ sơ, cần chấm mức phù hợp.\nAction: score_candidate[{job_id}, {user_id}]"
             return (
                 "Thought: Đã có kết quả chấm từ dữ liệu.\n"
-                "Final Answer: Tôi đã tra cứu JobID 0 và UserID 976112, rồi tạo điểm hỗ trợ HR. "
-                "Vui lòng dùng kết quả này để HR xem xét hồ sơ gốc."
+                f"Final Answer: Tôi đã chấm điểm UserID {user_id} theo JobID {job_id}. "
+                "HR cần xem hồ sơ gốc trước quyết định."
             )
 
-        if "jobid 0" in text:
-            if "observation: job [0]" not in text:
-                return "Thought: Cần tra cứu JobID được yêu cầu.\nAction: get_job_description[0]"
+        job_request = re.search(r"jobid\s+(\d+)", text)
+        if job_request:
+            job_id = job_request.group(1)
+            if f"observation: job [{job_id}]" not in text:
+                return f"Thought: Cần tra cứu JobID được yêu cầu.\nAction: get_job_description[{job_id}]"
             return (
                 "Thought: Đã có mô tả công việc.\n"
-                "Final Answer: Tôi đã lấy thông tin chi tiết của công việc JobID 0 từ dữ liệu."
+                f"Final Answer: Tôi đã lấy thông tin chi tiết của công việc JobID {job_id} từ dữ liệu."
             )
 
         return (

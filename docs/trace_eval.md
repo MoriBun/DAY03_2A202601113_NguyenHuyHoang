@@ -12,7 +12,7 @@
 
 ## So sanh Test Case 4
 
-Cau hoi: Danh gia muc do phu hop cua ung vien UserID 976112 voi cong viec JobID 0.
+Cau hoi: Danh gia muc do phu hop cua ung vien UserID 983877 voi cong viec JobID 0.
 
 ### Chatbot Baseline
 
@@ -26,11 +26,11 @@ vi khong co tool truy cap CSV.
     Observation: JOB [0]: Sale Admin Website ...
 
     Thought: Can doc ho so ung vien truoc khi cham.
-    Action: get_candidate_profile[976112]
-    Observation: UNG VIEN [976112]: nguyen Ba Nghi ...
+    Action: get_candidate_profile[983877]
+    Observation: Da doc ho so UserID 983877 de phuc vu cham diem.
 
     Thought: Da co JD va ho so, can cham muc phu hop.
-    Action: score_candidate[0, 976112]
+    Action: score_candidate[0, 983877]
     Observation: Diem heuristic va cac tieu chi vi tri, ky nang,
     Work Experience, nganh, dia diem.
 
